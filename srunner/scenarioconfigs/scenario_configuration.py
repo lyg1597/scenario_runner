@@ -84,3 +84,4 @@ class ScenarioConfiguration(object):
     friction = None
     subtype = None
     route_var_name = None
+    scenario_dict = {}

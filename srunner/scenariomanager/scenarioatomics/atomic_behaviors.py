@@ -1436,6 +1436,13 @@ class KeepVelocity(AtomicBehavior):
         super(KeepVelocity, self).terminate(new_status)
 
 
+class KeepVelocity_wrapper(KeepVelocity):
+    def __init__(self, params_dict):
+        super(KeepVelocity_wrapper, self).__init__(
+            params_dict['actor_list'][0],
+            params_dict['target_velocity']
+        )
+
 class ChangeAutoPilot(AtomicBehavior):
 
     """
@@ -1500,6 +1507,12 @@ class ChangeAutoPilot(AtomicBehavior):
         self.logger.debug("%s.update()[%s->%s]" % (self.__class__.__name__, self.status, new_status))
         return new_status
 
+class ChangeAutoPilot_wrapper(ChangeAutoPilot):
+    def __init__(self, params_dict):
+        super(ChangeAutoPilot_wrapper, self).__init__(
+            params_dict['actor_list'][0],
+            bool(params_dict['activate'])
+        )
 
 class StopVehicle(AtomicBehavior):
 
@@ -2091,6 +2104,22 @@ class LaneChange(WaypointFollower):
 
         return status
 
+class LaneChange_wrapper(LaneChange):
+    def __init__(self, params_dict):
+        # self._direction = params_dict['direction']
+        # self._distance_same_lane = params_dict['distance_same_lane']
+        # self._distance_other_lane = params_dict['distance_other_lane']
+        # self._distance_lane_change = params_dict['distance_lane_change']
+        # self._init_speed = params_dict['init_speed']
+        # self._actor = self.params_dict['actor_list'][0]
+        super(LaneChange_wrapper, self).__init__(
+            params_dict['actor_list'][0],
+            params_dict['speed'],
+            params_dict['direction'],
+            params_dict['distance_same_lane'],
+            params_dict['distance_other_lane'],
+            params_dict['distance_lane_change']
+        )
 
 class SetInitSpeed(AtomicBehavior):
 
@@ -2126,6 +2155,15 @@ class SetInitSpeed(AtomicBehavior):
 
         return py_trees.common.Status.SUCCESS
 
+
+class SetInitSpeed_wrapper(SetInitSpeed):
+    def __init__(self, params_dict):
+        # self._init_speed = params_dict['init_speed']
+        # self._actor = params_dict['actor_list'][0]
+        super(SetInitSpeed_wrapper, self).__init__(
+            params_dict['actor_list'][0],
+            params_dict['init_speed']
+        )
 
 class HandBrakeVehicle(AtomicBehavior):
 

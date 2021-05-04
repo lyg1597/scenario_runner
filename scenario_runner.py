@@ -79,6 +79,9 @@ class ScenarioRunner(object):
         """
         self._args = args
 
+        self.log_dir = args.log_dir
+        self.run_idx = args.run_idx
+
         if args.timeout:
             self.client_timeout = float(args.timeout)
 
@@ -420,6 +423,8 @@ class ScenarioRunner(object):
             print(e)
             result = False
 
+        self.manager.dump_trajectory(self.log_dir, self.run_idx)
+
         self._cleanup()
         return result
 
@@ -553,7 +558,9 @@ def main():
     parser.add_argument('--randomize', action="store_true", help='Scenario parameters are randomized')
     parser.add_argument('--repetitions', default=1, type=int, help='Number of scenario executions')
     parser.add_argument('--waitForEgo', action="store_true", help='Connect the scenario to an existing ego vehicle')
-
+    
+    parser.add_argument('--log_dir', default = '.', help='Directory for log files')
+    parser.add_argument('--run_idx', default = 0, help='Index of this run', type = int)
     arguments = parser.parse_args()
     # pylint: enable=line-too-long
 
@@ -597,4 +604,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

@@ -13,6 +13,8 @@ It must not be modified and is for reference only!
 from __future__ import print_function
 import sys
 import time
+import datetime
+import carla
 
 import py_trees
 
@@ -21,6 +23,7 @@ from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from srunner.scenariomanager.result_writer import ResultOutputProvider
 from srunner.scenariomanager.timer import GameTime
 from srunner.scenariomanager.watchdog import Watchdog
+
 
 
 class ScenarioManager(object):
@@ -41,7 +44,7 @@ class ScenarioManager(object):
     5. If needed, cleanup with manager.stop_scenario()
     """
 
-    def __init__(self, debug_mode=False, sync_mode=False, timeout=2.0):
+    def __init__(self, debug_mode=False, sync_mode=False, timeout=2.0, trajectory_file='traj'):
         """
         Setups up the parameters, which will be filled at load_scenario()
 
@@ -64,6 +67,17 @@ class ScenarioManager(object):
         self.scenario_duration_game = 0.0
         self.start_system_time = None
         self.end_system_time = None
+
+        self.vehicle_locations = []
+        self.vehicle_rotations = []
+        self.vehicle_velocities = []
+
+        self.actor_locations = []
+        self.actor_rotations = []
+
+        self.simulation_time = []
+
+        self.trajectory_file = trajectory_file
 
     def _reset(self):
         """
@@ -181,6 +195,32 @@ class ScenarioManager(object):
             if self.scenario_tree.status != py_trees.common.Status.RUNNING:
                 self._running = False
 
+            spectator = CarlaDataProvider.get_world().get_spectator()
+            ego_trans = self.ego_vehicles[0].get_transform()
+            spectator.set_transform(carla.Transform(ego_trans.location + carla.Location(z=50),
+                                                        carla.Rotation(pitch=-90)))
+
+
+
+            vehicle_location = ego_trans.location
+            vehicle_rotation = ego_trans.rotation
+            vehicle_velocity = self.ego_vehicles[0].get_velocity()
+
+            self.vehicle_locations.append(vehicle_location)
+            self.vehicle_rotations.append(vehicle_rotation)
+            # self.vehicle_velocities.append(vehicle_velocity)
+            
+            actor_location = []
+            actor_rotation = []
+            for i in range(len(self.other_actors)):
+                actor_location.append(self.other_actors[i].get_transform().location)
+                actor_rotation.append(self.other_actors[i].get_transform().rotation)
+
+            self.actor_locations.append(actor_location)
+            self.actor_rotations.append(actor_rotation)
+            self.simulation_time.append(timestamp)
+
+
         if self._sync_mode and self._running and self._watchdog.get_status():
             CarlaDataProvider.get_world().tick()
 
@@ -196,6 +236,8 @@ class ScenarioManager(object):
         This function is used by the overall signal handler to terminate the scenario execution
         """
         self._running = False
+        self.dump_trajectory()
+        self.clear_trajectory()
 
     def analyze_scenario(self, stdout, filename, junit, json):
         """
@@ -229,3 +271,29 @@ class ScenarioManager(object):
         output.write()
 
         return failure or timeout
+
+    def dump_trajectory(self, log_dir = '.', repetition_index = 0):
+        now = str(datetime.datetime.now())
+        now = now.replace(' ','_')
+        now = now.replace(':','-')
+        now = now.split('.')[0]
+
+        filename = f'{log_dir}/{self.trajectory_file}_{repetition_index}'
+        with open(filename, 'w+') as f:
+            for i in range(len(self.simulation_time)):
+                f.write(f"{self.simulation_time[i].elapsed_seconds} ")
+                f.write(f"{self.vehicle_locations[i].x} ")
+                f.write(f"{self.vehicle_locations[i].y} ")
+                f.write(f"{self.vehicle_rotations[i].yaw} ")
+                for j in range(len(self.other_actors)):
+                    f.write(f"{self.actor_locations[i][j].x} ")
+                    f.write(f"{self.actor_locations[i][j].y} ")
+                    f.write(f"{self.actor_rotations[i][j].yaw} ")
+                f.write("\n")
+
+    def clear_trajectory(self):
+        self.simulation_time = []
+        self.vehicle_locations = []
+        self.vehicle_rotations = []
+        self.actor_locations = []
+        self.actor_rotations = []

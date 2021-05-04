@@ -15,6 +15,7 @@ import math
 import traceback
 import xml.etree.ElementTree as ET
 import numpy.random as random
+import json
 
 import py_trees
 
@@ -39,6 +40,9 @@ from srunner.scenarios.object_crash_intersection import VehicleTurningRoute
 from srunner.scenarios.other_leading_vehicle import OtherLeadingVehicle
 from srunner.scenarios.maneuver_opposite_direction import ManeuverOppositeDirection
 from srunner.scenarios.junction_crossing_route import SignalJunctionCrossingRoute, NoSignalJunctionCrossingRoute
+from srunner.scenarios.bad_merge import BadMerge
+from srunner.scenarios.run_straight import RunStraight
+from srunner.scenarios.blank_scenario import BlankScenario
 
 from srunner.scenariomanager.scenarioatomics.atomic_criteria import (CollisionTest,
                                                                      InRouteTest,
@@ -60,7 +64,10 @@ NUMBER_CLASS_TRANSLATION = {
     "Scenario7": SignalJunctionCrossingRoute,
     "Scenario8": SignalJunctionCrossingRoute,
     "Scenario9": SignalJunctionCrossingRoute,
-    "Scenario10": NoSignalJunctionCrossingRoute
+    "Scenario10": NoSignalJunctionCrossingRoute,
+    "ScenarioBM": BadMerge,
+    "ScenarioRS": RunStraight,
+    "ScenarioBS": BlankScenario
 }
 
 
@@ -148,19 +155,23 @@ class RouteScenario(BasicScenario):
         """
 
         self.config = config
+        f = open(config.scenario_file,'r')
+        self.scenario_json = json.load(f)
+        f.close()
         self.route = None
         self.sampled_scenarios_definitions = None
 
         self._update_route(world, config, debug_mode)
 
-        ego_vehicle = self._update_ego_vehicle()
+        ego_vehicle = self._update_ego_vehicle(self.scenario_json["ego_vehicle"])
 
         self.list_scenarios = self._build_scenario_instances(world,
                                                              ego_vehicle,
                                                              self.sampled_scenarios_definitions,
                                                              scenarios_per_tick=5,
                                                              timeout=self.timeout,
-                                                             debug_mode=debug_mode)
+                                                             debug_mode=debug_mode,
+                                                             scenario_config = self.scenario_json)
 
         super(RouteScenario, self).__init__(name=config.name,
                                             ego_vehicles=[ego_vehicle],
@@ -203,18 +214,36 @@ class RouteScenario(BasicScenario):
         if debug_mode:
             self._draw_waypoints(world, self.route, vertical_shift=1.0, persistency=50000.0)
 
-    def _update_ego_vehicle(self):
+    def _update_ego_vehicle(self, ego_config):
         """
         Set/Update the start position of the ego_vehicle
         """
         # move ego to correct position
         elevate_transform = self.route[0][0]
         elevate_transform.location.z += 0.5
+        if "transform" in ego_config:
+            elevate_transform.location.x = ego_config['transform']['x']
+            elevate_transform.location.y = ego_config['transform']['y']
+            elevate_transform.location.z = ego_config['transform']['z']
+            elevate_transform.rotation.yaw = ego_config['transform']['yaw']
+            
+        model = 'vehicle.lincoln.mkz2017'
+        if "model" in ego_config:
+            model = ego_config['model']
+
+        rolename = 'hero'
+        if 'rolename' in ego_config:
+            model = ego_config['rolename']
 
         ego_vehicle = CarlaDataProvider.request_new_actor('vehicle.lincoln.mkz2017',
                                                           elevate_transform,
-                                                          rolename='hero')
+                                                          rolename=rolename)
 
+        spectator = CarlaDataProvider.get_world().get_spectator()
+        ego_trans = ego_vehicle.get_transform()
+        spectator.set_transform(carla.Transform(ego_trans.location + carla.Location(z=50),
+                                                    carla.Rotation(pitch=-90)))
+        
         return ego_vehicle
 
     def _estimate_route_timeout(self):
@@ -301,7 +330,7 @@ class RouteScenario(BasicScenario):
         return sampled_scenarios
 
     def _build_scenario_instances(self, world, ego_vehicle, scenario_definitions,
-                                  scenarios_per_tick=5, timeout=300, debug_mode=False):
+                                  scenarios_per_tick=5, timeout=300, debug_mode=False, scenario_config = {}):
         """
         Based on the parsed route and possible scenarios, build all the scenario classes.
         """
@@ -337,7 +366,7 @@ class RouteScenario(BasicScenario):
                                                                           'hero')]
             route_var_name = "ScenarioRouteNumber{}".format(scenario_number)
             scenario_configuration.route_var_name = route_var_name
-
+            scenario_configuration.scenario_dict = scenario_config
             try:
                 scenario_instance = scenario_class(world, [ego_vehicle], scenario_configuration,
                                                    criteria_enable=False, timeout=timeout)
@@ -396,16 +425,16 @@ class RouteScenario(BasicScenario):
 
         # Create the background activity of the route
         town_amount = {
-            'Town01': 120,
-            'Town02': 100,
-            'Town03': 120,
-            'Town04': 200,
-            'Town05': 120,
-            'Town06': 150,
-            'Town07': 110,
-            'Town08': 180,
-            'Town09': 300,
-            'Town10': 120,
+            'Town01': 0,
+            'Town02': 0,
+            'Town03': 0,
+            'Town04': 0,
+            'Town05': 0,
+            'Town06': 0,
+            'Town07': 0,
+            'Town08': 0,
+            'Town09': 0,
+            'Town10': 0,
         }
 
         amount = town_amount[config.town] if config.town in town_amount else 0

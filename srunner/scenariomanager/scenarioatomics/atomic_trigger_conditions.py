@@ -559,7 +559,6 @@ class InTriggerRegion(AtomicCondition):
 
         return new_status
 
-
 class InTriggerDistanceToVehicle(AtomicCondition):
 
     """
@@ -607,6 +606,13 @@ class InTriggerDistanceToVehicle(AtomicCondition):
 
         return new_status
 
+class InTriggerDistanceToVehicle_wrapper(InTriggerDistanceToVehicle):
+    def __init__(self, params_dict):
+        super(InTriggerDistanceToVehicle_wrapper, self).__init__(
+            params_dict['actor_list'][0],
+            params_dict['actor_list'][1],
+            params_dict['distance']
+        )
 
 class InTriggerDistanceToLocation(AtomicCondition):
 
